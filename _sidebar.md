@@ -1,3 +1,4 @@
 - [首页](/README.md)
+- [网络现状](/pages/status.md)
 - [OpenWRT IPv6 的三种写法](/pages/openwrt-ipv6.md)
 - [iptables 配置透明代理](/pages/iptables-tproxy.md)
