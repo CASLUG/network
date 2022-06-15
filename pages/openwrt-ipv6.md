@@ -1,5 +1,16 @@
 # OpenWRT IPv6 的三种写法
 
+## 预先配置
+
+有些内容在最新版 OpenWRT 里已经默认做到了，但这里仍然列出：
+
+```bash
+opkg update
+opkg install kmod-ipv6 kmod-ip6tables ip6tables luci-proto-ipv6
+ip6tables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+ip6tables -A FORWARD -i $LAN_IF -j ACCEPT
+```
+
 ## relay6
 
 这是推荐方案。
@@ -68,6 +79,7 @@ uci commit network
 # set to DHCPv6 server mode
 uci set dhcp.lan.ra_management='1'
 uci set dhcp.lan.ra='server'
+# 总是通告默认路由。因为 `fc::/7` 是私网地址段，默认不会把自己向下游通告为默认路由。
 uci set dhcp.lan.ra_default='1'
 uci set dhcp.lan.dhcpv6='server'
 uci set dhcp.lan.ndp='disabled'
@@ -127,6 +139,22 @@ wan6       2000::/3  fd80::yyyy  65535   [blank]  unicast
 
 上表里指定为 256 的因为较小，会被优先选用，而 65535 的就差不多完全不会选用。把某一条路由项的 metric 设为 256，其他的设为 65535，保存并应用后打开[一个纯 IPv6 网站][2]试试，不行就换下一个。
 
+如果想用 uci 改默认路由也可以，最终其实就是修改 `/etc/config/network` 里，增加新的 `config route6` 节：
+
+```
+config route6
+    option interface 'wan6'
+    option target '2000::/3'
+    option gateway 'fe80::xxxx'
+    option metric '256'
+```
+
+这个做法不够自动化，如果想在接口可用时自动完成，可以在 `/etc/hotplug.d/iface/` 里添加新的脚本，别忘了 `chmod +x`。
+
+```bash
+# 90-rroute6
+```
+
 ## bridge6
 
 这是一个在链路层的解决方案，部分路由器可以正常工作。
@@ -146,3 +174,13 @@ brctl addif $BR_IF $WAN_IF
 
 [1]: https://openwrt.org/docs/guide-user/network/ipv6/ipv6.nat6
 [2]: https://mirrors.tuna.tsinghua.edu.cn/
+
+## 参考资料
+
+- OpenWRT 路由器作为 IPv6 网关的配置 | 清华大学 | https://ipv6.tsinghua.edu.cn/openwrt/ https://github.com/tuna/ipv6.tsinghua.edu.cn/blob/master/openwrt.md
+- OpenWRT IPv6 三种配置方式 | Kompass | http://blog.kompaz.win/2017/02/22/OpenWRT%20IPv6%20%E9%85%8D%E7%BD%AE/
+- OpenWrt 路由器如何让 lan 口主机获得 ipv6 网络访问？ | 知乎 | https://www.zhihu.com/question/29667477
+- Openwrt / LEDE路由器上的 IPv6 设置 | shino | https://shino.space/2017/OpenWrt-LEDE路由器上的IPv6设置/
+- 教育网 DD-WRT／OpenWrt 用上 IPv6 ——以南京大学为例 | Penguin | https://www.polarxiong.com/archives/教育网DD-WRT-OpenWrt用上IPv6-以南京大学为例.html
+- NAT6: IPv6 Masquerading Router | OpenWRT | https://openwrt.org/docs/guide-user/network/ipv6/ipv6.nat6
+- 在 OpenWrt 上配置原生 IPv6 NAT | CSDN | https://blog.csdn.net/royal690510604/article/details/77606550
